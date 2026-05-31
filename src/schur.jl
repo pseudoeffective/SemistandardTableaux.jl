@@ -51,93 +51,90 @@ end
 
 
 """
-    schur_poly(la, ff, R=ssyt_ring(length(la), length(la)+la[1]); mu=[], xoffset=0, yoffset=0, rowmin=false)
+    schur_poly(la, ff=length(la); ring=nothing, coeff=ZZ, mu=Int[], xoffset=0, yoffset=0, rowmin=false)
 
-Compute the Schur polynomial corresponding to a given (skew) partition `la/mu` and a flag `ff`, in an optionally specified polynomial ring `R`. The polynomial is constructed as an enumerator of semistandard Young tableaux of (skew) shape `la/mu` and bounded by the flagging condition `ff`.
+Compute the Schur polynomial corresponding to a given (skew) partition `la/mu` and a flag `ff`. The polynomial is constructed as an enumerator of semistandard Young tableaux of (skew) shape `la/mu` and bounded by the flagging condition `ff`.
+
+By default (`ring=nothing`) the **ordinary** (single) Schur polynomial is returned, in `x`-variables `x1..xN` over `coeff` (default Nemo `ZZ`), where `N` is the largest flag entry. To obtain the **double/factorial** Schur polynomial, pass a `ring` that also contains `y`-variables (e.g. from `ssyt_ring(n, m)` with `m > 0`); the `x`- and `y`-families are recovered by name via `extract_vars`.
 
 ## Arguments
 - `la::Vector{Int}`: A partition represented as a vector of integers, specifying the shape of the Young diagram.
-- `ff::Union{Int,Vector{Int},Vector{Vector{Int}}}`: A flag specifying bounds on the tableaux. If `ff` is given as a single integer, it bounds the entries of the tableaux.  If `ff` is a vector of integers, it must be of length at least that of `la`; then `ff[i]` bounds the entries in the `i`th row of the tableaux.  If `ff` is a vector of vectors, it is interpreted as a tableaux whose shape is assumed to contain `la`; then the entries of `ff` bound the tableaux entrywise.
-- `R::MPolyRing`: An optional argument specifying the polynomial ring to use for constructing the Schur polynomial. The `x`- and `y`-variable families are recovered by name via `extract_vars`; if there are no `y`-variables the ordinary (single) Schur polynomial is returned, otherwise the double/factorial version. Defaults to a ring constructed by `ssyt_ring` based on the size of `la`.
-- `mu::Vector{Int}`: An optional argument specifying a subpartition of `la`, for skew Schur polynomials. Defaults to an empty vector, for the straight shape `la`.
-- `xoffset::Int`: An optional argument specifying an offset value for the x-variable indices in the polynomial. Defaults to 0.
-- `yoffset::Int`: An optional argument specifying an offset value for the y-variable indices in the polynomial. Defaults to 0.
-- `rowmin::Bool`: An optional argument specifying whether to use row-minimal tableau, i.e., to require that entries in row `i` be at least `i`.  (This is a nontrivial condition only for skew shapes.) Defaults to `false`.
+- `ff::Union{Int,Vector{Int},Vector{Vector{Int}}}`: A flag specifying bounds on the tableaux. If `ff` is given as a single integer, it bounds the entries of the tableaux.  If `ff` is a vector of integers, it must be of length at least that of `la`; then `ff[i]` bounds the entries in the `i`th row of the tableaux.  If `ff` is a vector of vectors, it is interpreted as a tableaux whose shape is assumed to contain `la`; then the entries of `ff` bound the tableaux entrywise. Defaults to `length(la)` (the number of rows).
+
+## Keywords
+- `ring::Union{Nothing,MPolyRing}`: The polynomial ring to build the answer in. `nothing` (default) builds an `x`-only ring for the ordinary Schur polynomial; supply a ring with `y`-variables for the double/factorial version.
+- `coeff`: The coefficient ring used when `ring` is not supplied. Defaults to Nemo `ZZ`.
+- `mu::Vector{Int}`: A subpartition of `la`, for skew Schur polynomials. Defaults to the empty vector (straight shape `la`).
+- `xoffset::Int`, `yoffset::Int`: Offsets for the `x`- and `y`-variable indices. Default `0`.
+- `rowmin::Bool`: When `true`, require entries in row `i` to be at least `i` (nontrivial only for skew shapes). Default `false`.
 
 ## Returns
-- An element of the polynomial ring `R` (e.g. `ZZMPolyRingElem`): the Schur polynomial.
+- An element of the polynomial ring (e.g. `ZZMPolyRingElem`): the Schur polynomial.
 
 # Examples
 ```julia-repl
-# Specify a partition
-julia> la = [2, 1]
-
-# Specify a bound for the x-variables
-julia> ff = 3
-
-# Compute the Schur polynomial
-julia> poly = schur_poly(la, ff)
-
-
-### To get the single Schur polynomial, use a ring with no y-variables
-julia> R = ssyt_ring(3, 0);
-
-julia> poly1 = schur_poly(la, ff, R)
+# Ordinary Schur polynomial of shape [2,1] with entries up to 3
+julia> schur_poly([2, 1], 3)
 x1^2*x2 + x1^2*x3 + x1*x2^2 + 2*x1*x2*x3 + x1*x3^2 + x2^2*x3 + x2*x3^2
 
+# Over the rationals
+julia> schur_poly([2, 1], 3; coeff=QQ)
+x1^2*x2 + x1^2*x3 + x1*x2^2 + 2*x1*x2*x3 + x1*x3^2 + x2^2*x3 + x2*x3^2
+
+# Double/factorial version: supply a ring with y-variables
+julia> R = ssyt_ring(3, 5);
+
+julia> schur_poly([2, 1], 3; ring=R);
 ```
 """
-function schur_poly( la, ff::Vector{Vector{Int}}, R::MPolyRing=ssyt_ring( length(la) , length(la)+la[1] ); mu = Int[], xoffset=0, yoffset=0, rowmin=false )
+function schur_poly( la, ff::Vector{Vector{Int}};
+                     ring::Union{Nothing,MPolyRing}=nothing, coeff=ZZ,
+                     mu::Vector{Int}=Int[], xoffset::Int=0, yoffset::Int=0, rowmin::Bool=false )
   if length(la)==0
-    return one(R)
+    return one(isnothing(ring) ? ssyt_ring(0, 0; coeff=coeff) : ring)
   end
 
-  x = extract_vars(R; varname=:x)
-  y = extract_vars(R; varname=:y)
+  if isnothing(ring)
+    # default: ordinary single Schur polynomial in x-variables over `coeff`
+    return schur_poly_single( la, ff; coeff=coeff, mu=mu, xoffset=xoffset, rowmin=rowmin )
+  end
+
+  x = extract_vars(ring; varname=:x)
+  y = extract_vars(ring; varname=:y)
 
   if length(y)==0
-     return schur_poly_single( la, ff, R; mu=mu, x=x, xoffset=xoffset, rowmin=rowmin )
+     return schur_poly_single( la, ff; ring=ring, x=x, mu=mu, xoffset=xoffset, rowmin=rowmin )
   end
 
-  tbs = ssyt( la, ff, mu=mu, rowmin=rowmin )
+  tbs = ssyt( la, ff; mu=mu, rowmin=rowmin )
 
-  pol = ssyt2pol( tbs, x, y; ring=R, xoffset=xoffset, yoffset=yoffset )
-
-  return pol
-
+  return ssyt2pol( tbs, x, y; ring=ring, xoffset=xoffset, yoffset=yoffset )
 end
 
 ###
-function schur_poly( la, ff::Vector{Int}, R::MPolyRing=ssyt_ring( length(la) , length(la)+la[1] ); mu = Int[], xoffset=0, yoffset=0, rowmin=false )
-  if length(la)==0
-    return one(R)
-  end
-
-  return schur_poly( la, Vector{Vector{Int}}([fill(ff[i],la[i]) for i=1:length(la)]), R; mu = mu, xoffset=xoffset, yoffset=yoffset, rowmin=rowmin )
-
-end
+schur_poly( la, ff::Vector{Int}; kwargs... ) =
+  schur_poly( la, Vector{Vector{Int}}([fill(ff[i], la[i]) for i=1:length(la)]); kwargs... )
 
 ###
-function schur_poly( la, ff::Int=length(la), R::MPolyRing=ssyt_ring( length(la) , length(la)+la[1] ); mu = Int[], xoffset=0, yoffset=0, rowmin=false )
-  if length(la)==0
-    return one(R)
-  end
-
-  return schur_poly( la, Vector{Int}(fill(ff,length(la))), R; mu = mu, xoffset=xoffset, yoffset=yoffset, rowmin=rowmin )
-end
+schur_poly( la, ff::Int=length(la); kwargs... ) =
+  schur_poly( la, Vector{Int}(fill(ff, length(la))); kwargs... )
 
 
 # faster polynomial constructor for single (one-set-of-variables) Schur
 # polynomials: stream weights straight off the shared enumeration core into a
 # build context, with no intermediate Tableau allocation.
-function schur_poly_single(lambda::Vector{Int}, ff::Vector{Vector{Int}}, R::MPolyRing=ssyt_ring(max(max(ff...)...),0); mu::Vector{Int}=Int[], x=extract_vars(R; varname=:x), xoffset::Int=0, rowmin::Bool=false)
+function schur_poly_single(lambda::Vector{Int}, ff::Vector{Vector{Int}};
+                           ring::Union{Nothing,MPolyRing}=nothing, coeff=ZZ,
+                           mu::Vector{Int}=Int[], x=nothing, xoffset::Int=0, rowmin::Bool=false)
   if isempty(lambda)
-    return one(R)
+    return one(isnothing(ring) ? ssyt_ring(0, 0; coeff=coeff) : ring)
   end
+
+  R = isnothing(ring) ? ssyt_ring(max(max(ff...)...), 0; coeff=coeff) : ring
+  xx = isnothing(x) ? extract_vars(R; varname=:x) : x
 
   S = base_ring(R)
   sf = MPolyBuildCtx(R)
-  xx = x
 
   s = ssyt_state(lambda, ff; mu=mu, rowmin=rowmin)
   count = zeros(Int, length(xx))
