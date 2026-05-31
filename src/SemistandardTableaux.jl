@@ -36,7 +36,10 @@ export
 ################################################################################
 
 include("rings.jl")
-include("ssyt.jl")
+include("tableaux.jl")
+include("enumeration.jl")
+include("schur.jl")
+include("insertion.jl")
 
 
 end
