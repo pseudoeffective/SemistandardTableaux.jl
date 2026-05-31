@@ -13,41 +13,21 @@ module SemistandardTableaux
 # Import
 ################################################################################
 
-# Base
-import Base:
-	*, transpose
-
-# Combinatorics
-import Combinatorics:
-	nthperm
-
 # AbstractAlgebra
 import AbstractAlgebra:
-	base_ring, gen, gens, parent_type, nvars, polynomial_ring, MPolyBuildCtx, push_term!, finish
+	base_ring, gens, polynomial_ring, MPolyBuildCtx, push_term!, finish,
+	elem_type, MPolyRing, one, zero
 
-# Nemo
+# Nemo (coefficient rings)
 import Nemo:
-	ZZ, QQ, libflint, ZZMPolyRing, ZZMPolyRingElem, evaluate, vars, coefficients
-
-# LinearAlgebra for determinant
-import LinearAlgebra: 
-	det
-
-# Memoization
-import Memoization: 
-	@memoize
-
-
-# bpds
-using BumplessPipeDreams
+	ZZ, QQ
 
 ################################################################################
 # Export (more exports are in the source files)
 ################################################################################
 
 export
-	ZZ, QQ, PolyRing, ZZMPolyRing, ZZMPolyRingElem, QQMPolyRing, QQMPolyRingElem
-	
+	ZZ, QQ
 
 
 
@@ -55,6 +35,7 @@ export
 # source files
 ################################################################################
 
+include("rings.jl")
 include("ssyt.jl")
 
 
