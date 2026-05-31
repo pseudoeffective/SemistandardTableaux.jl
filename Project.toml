@@ -1,0 +1,4 @@
+name = "SemistandardTableaux"
+uuid = "4fa827a6-5f60-431e-8381-c8437c5e3c04"
+authors = ["David Anderson <david.ed.anderson@gmail.com>"]
+version = "0.1.0"
