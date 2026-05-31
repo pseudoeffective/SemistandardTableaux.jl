@@ -30,24 +30,38 @@ using Test
         @test ssyt([2, 1], [1, 2])[1] == Tableau([[1, 1], [2]])
     end
 
-    @testset "single Schur expansion" begin
+    @testset "single Schur expansion (ordinary by default)" begin
         R = ssyt_ring(3, 0)
         x = gens(R)
         expected = x[1]^2*x[2] + x[1]^2*x[3] + x[1]*x[2]^2 + 2*x[1]*x[2]*x[3] +
                    x[1]*x[3]^2 + x[2]^2*x[3] + x[2]*x[3]^2
-        @test schur_poly([2, 1], 3, R) == expected
+        # bare call defaults to the ordinary single Schur polynomial
+        @test schur_poly([2, 1], 3) == expected
+        # explicit x-only ring agrees
+        @test schur_poly([2, 1], 3; ring=R) == expected
+    end
+
+    @testset "keyword ring/coeff API" begin
+        # coeff=QQ path constructs and evaluates
+        RQ = ssyt_ring(3, 0; coeff=QQ)
+        xq = gens(RQ)
+        expectedQ = xq[1]^2*xq[2] + xq[1]^2*xq[3] + xq[1]*xq[2]^2 + 2*xq[1]*xq[2]*xq[3] +
+                    xq[1]*xq[3]^2 + xq[2]^2*xq[3] + xq[2]*xq[3]^2
+        @test schur_poly([2, 1], 3; coeff=QQ) == expectedQ
+        # empty shape is handled before any la[1] access
+        @test schur_poly(Int[], 0) == one(ssyt_ring(0, 0))
     end
 
     @testset "factorial reduces to ordinary (y => 0)" begin
         R1 = ssyt_ring(3, 0)
         g1 = gens(R1)
-        R2 = ssyt_ring(3, 5)            # x1..x3 then y1..y5
-        p2 = schur_poly([2, 1], 3, R2)  # double/factorial version
+        R2 = ssyt_ring(3, 5)                  # x1..x3 then y1..y5
+        p2 = schur_poly([2, 1], 3; ring=R2)   # double/factorial version
 
         # substitute x_i -> x_i of R1, all y_j -> 0
         sub = [startswith(string(v), "x") ? g1[parse(Int, string(v)[2:end])] : zero(R1)
                for v in gens(R2)]
-        @test evaluate(p2, sub) == schur_poly([2, 1], 3, R1)
+        @test evaluate(p2, sub) == schur_poly([2, 1], 3; ring=R1)
     end
 
     @testset "deprecated xy_ring shim" begin
