@@ -51,17 +51,18 @@ end
 
 
 """
-    schur_poly(la, ff=length(la); ring=nothing, coeff=ZZ, mu=Int[], xoffset=0, yoffset=0, rowmin=false)
+    schur_poly(la, ff=length(la); double=false, ring=nothing, coeff=ZZ, mu=Int[], xoffset=0, yoffset=0, rowmin=false)
 
 Compute the Schur polynomial corresponding to a given (skew) partition `la/mu` and a flag `ff`. The polynomial is constructed as an enumerator of semistandard Young tableaux of (skew) shape `la/mu` and bounded by the flagging condition `ff`.
 
-By default (`ring=nothing`) the **ordinary** (single) Schur polynomial is returned, in `x`-variables `x1..xN` over `coeff` (default Nemo `ZZ`), where `N` is the largest flag entry. To obtain the **double/factorial** Schur polynomial, pass a `ring` that also contains `y`-variables (e.g. from `ssyt_ring(n, m)` with `m > 0`); the `x`- and `y`-families are recovered by name via `extract_vars`.
+By default (`ring=nothing`, `double=false`) the **ordinary** (single) Schur polynomial is returned, in `x`-variables `x1..xN` over `coeff` (default Nemo `ZZ`), where `N` is the largest flag entry. To obtain the **double/factorial** Schur polynomial, pass a `ring` that also contains `y`-variables (e.g. from `ssyt_ring(n, m)` with `m > 0`); the `x`- and `y`-families are recovered by name via `extract_vars`.
 
 ## Arguments
 - `la::Vector{Int}`: A partition represented as a vector of integers, specifying the shape of the Young diagram.
 - `ff::Union{Int,Vector{Int},Vector{Vector{Int}}}`: A flag specifying bounds on the tableaux. If `ff` is given as a single integer, it bounds the entries of the tableaux.  If `ff` is a vector of integers, it must be of length at least that of `la`; then `ff[i]` bounds the entries in the `i`th row of the tableaux.  If `ff` is a vector of vectors, it is interpreted as a tableaux whose shape is assumed to contain `la`; then the entries of `ff` bound the tableaux entrywise. Defaults to `length(la)` (the number of rows).
 
 ## Keywords
+- `double::Bool`: When `true`, compute the double/factorial Schur polynomial. If `ring` is not supplied, defaults to `ssyt_ring(length(la), length(la)+la[1])`. Default `false`.
 - `ring::Union{Nothing,MPolyRing}`: The polynomial ring to build the answer in. `nothing` (default) builds an `x`-only ring for the ordinary Schur polynomial; supply a ring with `y`-variables for the double/factorial version.
 - `coeff`: The coefficient ring used when `ring` is not supplied. Defaults to Nemo `ZZ`.
 - `mu::Vector{Int}`: A subpartition of `la`, for skew Schur polynomials. Defaults to the empty vector (straight shape `la`).
@@ -88,10 +89,14 @@ julia> schur_poly([2, 1], 3; ring=R);
 ```
 """
 function schur_poly( la, ff::Vector{Vector{Int}};
-                     ring::Union{Nothing,MPolyRing}=nothing, coeff=ZZ,
+                     double::Bool=false, ring::Union{Nothing,MPolyRing}=nothing, coeff=ZZ,
                      mu::Vector{Int}=Int[], xoffset::Int=0, yoffset::Int=0, rowmin::Bool=false )
   if length(la)==0
     return one(isnothing(ring) ? ssyt_ring(0, 0; coeff=coeff) : ring)
+  end
+
+  if double && isnothing(ring)
+    ring = ssyt_ring(length(la), length(la)+la[1]; coeff=coeff)
   end
 
   if isnothing(ring)
