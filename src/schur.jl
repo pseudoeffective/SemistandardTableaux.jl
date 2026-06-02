@@ -6,11 +6,14 @@
 export schur_poly
 
 # return the product of binomials for a single tableau
-function tab2bin( tab::Tableau, x, y; ring, xoffset = 0, yoffset = 0 )
+function tab2bin( tab::Tableau; double, ring, xoffset = 0, yoffset = 0 )
   len = length(tab.t)
 
+  x=extract_vars(ring; varname=:x)
+  y=extract_vars(ring; varname=:y)
+
   n = length(x)
-  m = length(y)
+  double ? m = length(y) : m = 0 # if not double, ignore y-variables even if present
 
   bin = one(ring)
 
@@ -36,12 +39,12 @@ end
 
 
 # sum of binomials for a set of tableaux
-function ssyt2pol( tabs, x, y; ring, xoffset=0, yoffset=0 )
+function ssyt2pol( tabs; double=false, ring, xoffset=0, yoffset=0 )
 
   pol=zero(ring)
 
   for tab in tabs
-    pol = pol + tab2bin( tab, x, y; ring=ring, xoffset=xoffset, yoffset=yoffset )
+    pol = pol + tab2bin( tab; double=double, ring=ring, xoffset=xoffset, yoffset=yoffset )
   end
 
   return pol
@@ -89,19 +92,18 @@ julia> schur_poly([2, 1], 3; ring=R);
 ```
 """
 function schur_poly( la, ff::Vector{Vector{Int}};
-                     double::Bool=false, ring::Union{Nothing,MPolyRing}=nothing, coeff=ZZ,
-                     mu::Vector{Int}=Int[], xoffset::Int=0, yoffset::Int=0, rowmin::Bool=false )
+                     double::Bool=false,
+                     coeff=ZZ,
+                     ring::MPolyRing=(double ? ssyt_ring(length(la), length(la)+la[1]; coeff=coeff) : ssyt_ring(length(la), 0; coeff=coeff)),
+                     mu::Vector{Int}=Int[],
+                     xoffset::Int=0, yoffset::Int=0, rowmin::Bool=false )
   if length(la)==0
-    return one(isnothing(ring) ? ssyt_ring(0, 0; coeff=coeff) : ring)
+    return one(ring)
   end
 
-  if double && isnothing(ring)
-    ring = ssyt_ring(length(la), length(la)+la[1]; coeff=coeff)
-  end
-
-  if isnothing(ring)
+  if !double
     # default: ordinary single Schur polynomial in x-variables over `coeff`
-    return schur_poly_single( la, ff; coeff=coeff, mu=mu, xoffset=xoffset, rowmin=rowmin )
+    return schur_poly_single( la, ff; ring=ring, coeff=coeff, mu=mu, xoffset=xoffset, rowmin=rowmin )
   end
 
   x = extract_vars(ring; varname=:x)
@@ -113,7 +115,7 @@ function schur_poly( la, ff::Vector{Vector{Int}};
 
   tbs = ssyt( la, ff; mu=mu, rowmin=rowmin )
 
-  return ssyt2pol( tbs, x, y; ring=ring, xoffset=xoffset, yoffset=yoffset )
+  return ssyt2pol( tbs; double=double, ring=ring, xoffset=xoffset, yoffset=yoffset )
 end
 
 ###
@@ -129,20 +131,22 @@ schur_poly( la, ff::Int=length(la); kwargs... ) =
 # polynomials: stream weights straight off the shared enumeration core into a
 # build context, with no intermediate Tableau allocation.
 function schur_poly_single(lambda::Vector{Int}, ff::Vector{Vector{Int}};
-                           ring::Union{Nothing,MPolyRing}=nothing, coeff=ZZ,
+                           ring::MPolyRing=ssyt_ring(length(lambda), 0; coeff=coeff), coeff=ZZ,
                            mu::Vector{Int}=Int[], x=nothing, xoffset::Int=0, rowmin::Bool=false)
   if isempty(lambda)
-    return one(isnothing(ring) ? ssyt_ring(0, 0; coeff=coeff) : ring)
+    return one(ring)
   end
 
-  R = isnothing(ring) ? ssyt_ring(max(max(ff...)...), 0; coeff=coeff) : ring
+  R = ring
   xx = isnothing(x) ? extract_vars(R; varname=:x) : x
 
   S = base_ring(R)
   sf = MPolyBuildCtx(R)
 
   s = ssyt_state(lambda, ff; mu=mu, rowmin=rowmin)
-  count = zeros(Int, length(xx))
+  # exponent vectors must span every variable of `R` (the ring may also carry
+  # y-variables we are ignoring for the single polynomial); x are the first gens
+  count = zeros(Int, length(gens(R)))
 
   while next_ssyt!(s)
     count .= 0
