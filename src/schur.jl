@@ -94,7 +94,7 @@ julia> schur_poly([2, 1], 3; ring=R);
 function schur_poly( la, ff::Vector{Vector{Int}};
                      double::Bool=false,
                      coeff=ZZ,
-                     ring::MPolyRing=(double ? ssyt_ring(length(la), length(la)+la[1]; coeff=coeff) : ssyt_ring(length(la), 0; coeff=coeff)),
+                     ring::MPolyRing=(double ? ssyt_ring(isempty(ff) ? 0 : maximum(maximum,ff), isempty(ff) ? 0 : maximum(maximum,ff)+la[1]; coeff=coeff) : ssyt_ring(isempty(ff) ? 0 : maximum(maximum,ff), 0; coeff=coeff)),
                      mu::Vector{Int}=Int[],
                      xoffset::Int=0, yoffset::Int=0, rowmin::Bool=false )
   if length(la)==0
@@ -131,7 +131,7 @@ schur_poly( la, ff::Int=length(la); kwargs... ) =
 # polynomials: stream weights straight off the shared enumeration core into a
 # build context, with no intermediate Tableau allocation.
 function schur_poly_single(lambda::Vector{Int}, ff::Vector{Vector{Int}};
-                           ring::MPolyRing=ssyt_ring(length(lambda), 0; coeff=coeff), coeff=ZZ,
+                           ring::MPolyRing=ssyt_ring(isempty(ff) ? 0 : maximum(maximum,ff), 0; coeff=coeff), coeff=ZZ,
                            mu::Vector{Int}=Int[], x=nothing, xoffset::Int=0, rowmin::Bool=false)
   if isempty(lambda)
     return one(ring)
